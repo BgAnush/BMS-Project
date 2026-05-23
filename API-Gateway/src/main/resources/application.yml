@@ -1,0 +1,108 @@
+rbac:
+  roles:
+
+    # ================= USER =================
+    USER:
+
+      # USERS SERVICE
+      - path: /users/users/me
+        methods: [GET, PATCH]
+
+      # ACCOUNTS SERVICE
+      - path: /accounts/accounts/user/me
+        methods: [GET]
+
+      # TRANSACTION SERVICE
+      - path: /transactions/transactions/user/deposit
+        methods: [POST]
+
+      - path: /transactions/transactions/user/withdraw
+        methods: [POST]
+
+      - path: /transactions/transactions/user/transfer
+        methods: [POST]
+
+      - path: /transactions/transactions/user/me
+        methods: [GET]
+
+      # CREDIT CARD SERVICE
+      - path: /credit-card/credit-card/user/request
+        methods: [POST]
+
+      - path: /credit-card/credit-card/user/cards
+        methods: [GET]
+
+      - path: /credit-card/credit-card/user/set-pin/**
+        methods: [POST]
+
+      - path: /credit-card/credit-card/user/transaction
+        methods: [POST]
+
+      - path: /credit-card/credit-card/user/transactions
+        methods: [GET]
+
+      - path: /credit-card/credit-card/user/pay
+        methods: [PUT]
+
+      - path: /credit-card/credit-card/user/bill
+        methods: [GET]
+
+      # LOAN SERVICE
+      - path: /loan/loan/user/apply
+        methods: [POST]
+
+      - path: /loan/loan/user/my-loans
+        methods: [GET]
+
+      - path: /loan/loan/user/close/**
+        methods: [PUT]
+
+      - path: /loan/loan/emi/user/**
+        methods: [GET, POST]
+
+
+    # ================= ADMIN =================
+    ADMIN:
+
+      # AUTH SERVICE
+      - path: /auth/auth/admin/register
+        methods: [POST]
+
+      # USERS SERVICE
+      - path: /users/users/admin/**
+        methods: [GET, PATCH, DELETE]
+
+      # ACCOUNTS SERVICE
+      - path: /accounts/accounts/admin/**
+        methods: [GET, POST, PUT, DELETE]
+
+      # TRANSACTION SERVICE
+      - path: /transactions/transactions/admin/**
+        methods: [GET]
+
+      # CREDIT CARD SERVICE
+      - path: /credit-card/credit-card/admin/**
+        methods: [GET, POST, PUT, DELETE]
+
+      # LOAN SERVICE
+      - path: /loan/loan/admin/**
+        methods: [GET, POST, PUT, DELETE]
+
+      - path: /loan/loan/emi/admin/**
+        methods: [GET]
+
+
+    # ================= MANAGER =================
+    MANAGER:
+
+      # ACCOUNTS SERVICE
+      - path: /accounts/accounts/manager/**
+        methods: [GET]
+
+      # CREDIT CARD SERVICE
+      - path: /credit-card/credit-card/manager/**
+        methods: [POST]
+
+      # LOAN SERVICE
+      - path: /loan/loan/manager/**
+        methods: [GET, PUT]

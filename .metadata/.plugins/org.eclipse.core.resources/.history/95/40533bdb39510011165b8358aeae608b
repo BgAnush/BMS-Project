@@ -1,0 +1,5 @@
+package com.bank.notification.config;
+
+public class AsyncConfig {
+
+}

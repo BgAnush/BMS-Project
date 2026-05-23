@@ -1,0 +1,5 @@
+package com.bank.notification.utility;
+
+public class MailTemplateBuilder {
+
+}

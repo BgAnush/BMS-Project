@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<section name="Workbench">
+	<section name="java.lang.Class">
+		<item key="replaceBarOpen" value="true"/>
+		<list key="findhistory">
+			<item value="trace"/>
+			<item value="RequestBody"/>
+			<item value="request"/>
+			<item value="mask"/>
+			<item value="maskcard"/>
+			<item value="LOAN_NUMBER"/>
+			<item value="USER_ID"/>
+			<item value="account"/>
+			<item value="getUSer"/>
+			<item value="Valida"/>
+			<item value="LoanValidator"/>
+			<item value="Transaction"/>
+			<item value="process"/>
+			<item value="apprive"/>
+			<item value="getAccount"/>
+		</list>
+		<list key="replacehistory">
+			<item value="loanNumber"/>
+			<item value="userId"/>
+		</list>
+	</section>
+</section>

@@ -1,0 +1,5 @@
+package com.bank.notification.service.impl;
+
+public class EmailServiceImpl {
+
+}

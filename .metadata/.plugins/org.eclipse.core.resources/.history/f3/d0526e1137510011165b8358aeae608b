@@ -1,0 +1,447 @@
+package com.bank.transaction.service;
+
+import com.bank.transaction.client.AccountClient;
+import com.bank.transaction.client.NotificationClient;
+import com.bank.transaction.dto.AccountResponseDTO;
+import com.bank.transaction.dto.NotificationRequest;
+import com.bank.transaction.dto.TransactionInternalDTO;
+import com.bank.transaction.dto.TransactionResponseDTO;
+import com.bank.transaction.exception.InsufficientBalanceException;
+import com.bank.transaction.exception.UnauthorizedException;
+import com.bank.transaction.model.Transaction;
+import com.bank.transaction.repository.TransactionRepository;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
+
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class TransactionService {
+
+    private final TransactionRepository repo;
+    private final AccountClient accountClient;
+    private final NotificationClient notificationClient;
+
+    private static final String DEPOSIT = "DEPOSIT";
+    private static final String WITHDRAW = "WITHDRAW";
+    private static final String TRANSFER = "TRANSFER";
+
+    // =====================================================
+    // GET ACCOUNT USING USER ID
+    // =====================================================
+
+    private AccountResponseDTO getAccountByUserId(Integer userId) {
+
+        if (userId == null) {
+            throw new UnauthorizedException("User ID cannot be null");
+        }
+
+        AccountResponseDTO account =
+                accountClient.getAccountByUserId(userId);
+
+        if (account == null ||
+                account.getAccountNumber() == null) {
+
+            throw new UnauthorizedException("Account not found");
+        }
+
+        return account;
+    }
+
+    // =====================================================
+    // DEPOSIT
+    // =====================================================
+
+    @Transactional
+    public String deposit(Integer userId, Double amount) {
+
+        validateAmount(amount);
+
+        AccountResponseDTO account =
+                getAccountByUserId(userId);
+
+        // CALL ACCOUNT SERVICE
+        accountClient.deposit(
+                account.getAccountNumber(),
+                amount
+        );
+
+        // SAVE TRANSACTION
+        Transaction savedTransaction =
+                saveTransaction(
+                        account.getAccountNumber(),
+                        null,
+                        amount,
+                        DEPOSIT
+                );
+
+        // SEND NOTIFICATION
+        sendNotification(
+                userId,
+                savedTransaction.getAmount(),
+                DEPOSIT
+        );
+
+        log.info("Deposit successful for account : {}",
+                account.getAccountNumber());
+
+        return "Deposit Successful";
+    }
+
+    // =====================================================
+    // WITHDRAW
+    // =====================================================
+
+    @Transactional
+    public String withdraw(Integer userId, Double amount) {
+
+        validateAmount(amount);
+
+        AccountResponseDTO account =
+                getAccountByUserId(userId);
+
+        // CHECK BALANCE
+        if (account.getBalance() < amount) {
+
+            throw new InsufficientBalanceException(
+                    "Insufficient balance"
+            );
+        }
+
+        // CALL ACCOUNT SERVICE
+        accountClient.withdraw(
+                account.getAccountNumber(),
+                amount
+        );
+
+        // SAVE TRANSACTION
+        Transaction savedTransaction =
+                saveTransaction(
+                        account.getAccountNumber(),
+                        null,
+                        amount,
+                        WITHDRAW
+                );
+
+        // SEND NOTIFICATION
+        sendNotification(
+                userId,
+                savedTransaction.getAmount(),
+                WITHDRAW
+        );
+
+        log.info("Withdraw successful for account : {}",
+                account.getAccountNumber());
+
+        return "Withdraw Successful";
+    }
+
+    // =====================================================
+    // TRANSFER
+    // =====================================================
+
+    @Transactional
+    public String transfer(
+            Integer userId,
+            String targetAccountNumber,
+            Double amount
+    ) {
+
+        validateAmount(amount);
+
+        AccountResponseDTO sender =
+                getAccountByUserId(userId);
+
+        // VALIDATE TARGET ACCOUNT
+        if (targetAccountNumber == null ||
+                targetAccountNumber.isBlank()) {
+
+            throw new IllegalArgumentException(
+                    "Target account number required"
+            );
+        }
+
+        AccountResponseDTO receiver =
+                accountClient.getInternal(targetAccountNumber);
+
+        if (receiver == null) {
+
+            throw new UnauthorizedException(
+                    "Target account not found"
+            );
+        }
+
+        // CHECK BALANCE
+        if (sender.getBalance() < amount) {
+
+            throw new InsufficientBalanceException(
+                    "Insufficient balance"
+            );
+        }
+
+        // DEBIT SENDER
+        accountClient.withdraw(
+                sender.getAccountNumber(),
+                amount
+        );
+
+        // CREDIT RECEIVER
+        accountClient.deposit(
+                targetAccountNumber,
+                amount
+        );
+
+        // SAVE SENDER RECORD
+        Transaction senderTransaction =
+                saveTransaction(
+                        sender.getAccountNumber(),
+                        targetAccountNumber,
+                        amount,
+                        TRANSFER
+                );
+
+        // SAVE RECEIVER RECORD
+        saveTransaction(
+                targetAccountNumber,
+                sender.getAccountNumber(),
+                amount,
+                TRANSFER
+        );
+
+        // SEND NOTIFICATION TO SENDER
+        sendNotification(
+                userId,
+                senderTransaction.getAmount(),
+                TRANSFER
+        );
+
+        log.info(
+                "Transfer successful from {} to {}",
+                sender.getAccountNumber(),
+                targetAccountNumber
+        );
+
+        return "Transfer Successful";
+    }
+
+    // =====================================================
+    // SAVE INTERNAL TRANSACTION
+    // =====================================================
+
+    @Transactional
+    public void saveRecord(TransactionInternalDTO dto) {
+
+        saveTransaction(
+                dto.getAccountNumber(),
+                dto.getTargetAccountNumber(),
+                dto.getAmount(),
+                dto.getType()
+        );
+    }
+
+    // =====================================================
+    // SAVE TRANSACTION
+    // =====================================================
+
+    private Transaction saveTransaction(
+            String accountNumber,
+            String targetAccountNumber,
+            Double amount,
+            String type
+    ) {
+
+        Transaction transaction = new Transaction();
+
+        transaction.setAccountNumber(accountNumber);
+        transaction.setTargetAccountNumber(
+                targetAccountNumber
+        );
+        transaction.setAmount(amount);
+        transaction.setType(type);
+        transaction.setTransactionDate(
+                LocalDateTime.now()
+        );
+
+        return repo.save(transaction);
+    }
+
+    // =====================================================
+    // SEND NOTIFICATION
+    // =====================================================
+
+    private void sendNotification(
+            Integer customerId,
+            Double amount,
+            String transactionType
+    ) {
+
+        try {
+
+            NotificationRequest request =
+                    NotificationRequest.builder()
+                            .customerId(customerId)
+                            .type("TRANSACTION")
+                            .data(
+                                    Map.of(
+                                            "amount", amount,
+                                            "transactionType",
+                                            transactionType
+                                    )
+                            )
+                            .build();
+
+            notificationClient.sendNotification(request);
+
+            log.info(
+                    "Notification sent successfully"
+            );
+
+        } catch (Exception e) {
+
+            log.error(
+                    "Notification service failed : {}",
+                    e.getMessage()
+            );
+        }
+    }
+
+    // =====================================================
+    // GET MY TRANSACTIONS
+    // =====================================================
+
+    @Transactional(readOnly = true)
+    public List<TransactionResponseDTO>
+    getMyTransactions(Integer userId) {
+
+        String userAccount =
+                getAccountByUserId(userId)
+                        .getAccountNumber();
+
+        return repo
+                .findByAccountNumberOrTargetAccountNumber(
+                        userAccount,
+                        userAccount
+                )
+                .stream()
+                .map(transaction ->
+                        mapToDTO(transaction, userAccount)
+                )
+                .toList();
+    }
+
+    // =====================================================
+    // GET ALL TRANSACTIONS
+    // =====================================================
+
+    @Transactional(readOnly = true)
+    public List<TransactionResponseDTO> getAll() {
+
+        return repo.findAll()
+                .stream()
+                .map(transaction ->
+                        mapToDTO(
+                                transaction,
+                                transaction.getAccountNumber()
+                        )
+                )
+                .toList();
+    }
+
+    // =====================================================
+    // GET BY ACCOUNT
+    // =====================================================
+
+    @Transactional(readOnly = true)
+    public List<TransactionResponseDTO>
+    getByAccount(String accountNumber) {
+
+        return repo
+                .findByAccountNumberOrTargetAccountNumber(
+                        accountNumber,
+                        accountNumber
+                )
+                .stream()
+                .map(transaction ->
+                        mapToDTO(
+                                transaction,
+                                accountNumber
+                        )
+                )
+                .toList();
+    }
+
+    // =====================================================
+    // VALIDATE AMOUNT
+    // =====================================================
+
+    private void validateAmount(Double amount) {
+
+        if (amount == null || amount <= 0) {
+
+            throw new IllegalArgumentException(
+                    "Invalid amount"
+            );
+        }
+    }
+
+    // =====================================================
+    // MAP ENTITY TO DTO
+    // =====================================================
+
+    private TransactionResponseDTO mapToDTO(
+            Transaction transaction,
+            String userAccount
+    ) {
+
+        String direction;
+
+        // CREDIT
+        if (transaction.getTargetAccountNumber() != null
+                &&
+                transaction.getTargetAccountNumber()
+                        .equals(userAccount)) {
+
+            direction = "CREDIT";
+
+        }
+
+        // DEBIT
+        else if (transaction.getAccountNumber() != null
+                &&
+                transaction.getAccountNumber()
+                        .equals(userAccount)) {
+
+            direction = "DEBIT";
+
+        }
+
+        // UNKNOWN
+        else {
+
+            direction = "UNKNOWN";
+        }
+
+        return new TransactionResponseDTO(
+
+                transaction.getId(),
+
+                transaction.getAccountNumber(),
+
+                transaction.getTargetAccountNumber(),
+
+                transaction.getAmount(),
+
+                direction + " - " + transaction.getType(),
+
+                transaction.getTransactionDate()
+        );
+    }
+}

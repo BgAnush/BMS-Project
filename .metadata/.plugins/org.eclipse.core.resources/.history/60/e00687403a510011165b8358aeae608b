@@ -1,0 +1,56 @@
+# =========================================================
+# APPLICATION
+# =========================================================
+spring.application.name=NOTIFICATION-SERVICE
+
+server.port=8086
+
+
+# =========================================================
+# MAIL CONFIGURATION
+# =========================================================
+spring.mail.host=smtp.gmail.com
+spring.mail.port=587
+
+spring.mail.username=yourmail@gmail.com
+spring.mail.password=your_app_password
+
+spring.mail.properties.mail.smtp.auth=true
+spring.mail.properties.mail.smtp.starttls.enable=true
+
+
+# =========================================================
+# EUREKA CLIENT
+# =========================================================
+eureka.client.service-url.defaultZone=http://localhost:8761/eureka
+
+eureka.client.register-with-eureka=true
+eureka.client.fetch-registry=true
+
+
+# =========================================================
+# ACTUATOR
+# =========================================================
+management.endpoints.web.exposure.include=*
+
+
+# =========================================================
+# LOGGING
+# =========================================================
+logging.level.root=INFO
+
+logging.level.com.bank.notification=DEBUG
+
+logging.pattern.console=%d{yyyy-MM-dd HH:mm:ss} - %msg%n
+
+
+# =========================================================
+# ASYNC THREAD POOL
+# =========================================================
+spring.task.execution.pool.core-size=5
+
+spring.task.execution.pool.max-size=10
+
+spring.task.execution.pool.queue-capacity=100
+
+spring.task.execution.thread-name-prefix=Notification-Thread-

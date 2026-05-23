@@ -1,0 +1,5 @@
+package com.bank.notification.exception;
+
+public class GlobalExceptionHandler {
+
+}
